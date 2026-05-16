@@ -1,0 +1,52 @@
+{
+  "name": "@troqpay/sdk",
+  "version": "0.1.0",
+  "description": "Official JavaScript/TypeScript SDK for the troqpay API.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/troqpay/sdk.git"
+  },
+  "bugs": {
+    "url": "https://github.com/troqpay/sdk/issues"
+  },
+  "homepage": "https://docs.troqpay.com/sdks/javascript",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "prepublishOnly": "npm run lint && npm run test && npm run build"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "troqpay",
+    "pix",
+    "payments",
+    "sdk"
+  ],
+  "author": "troqpay",
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
