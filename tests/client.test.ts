@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { Troqpay, TroqpayAPIError } from "../src/index.js";
+import {
+  Troqpay,
+  TroqpayAPIError,
+  TroqpayConfigurationError,
+} from "../src/index.js";
 
 function createJsonResponse(body: unknown, init: ResponseInit = {}) {
   return new Response(JSON.stringify(body), {
@@ -126,5 +130,69 @@ describe("Troqpay", () => {
     await expect(client.balance.retrieve()).resolves.toMatchObject({
       availableAmount: "98.00",
     });
+  });
+
+  it("normalizes secret and request headers", async () => {
+    const requests: Array<{ input: RequestInfo | URL; init?: RequestInit }> = [];
+    const fetchImpl: typeof fetch = async (input, init) => {
+      requests.push({ input, init });
+      return createJsonResponse({ ok: true });
+    };
+
+    const client = new Troqpay({
+      apiKey: "  trq_test_secret\n",
+      baseUrl: "https://api.example.test/",
+      fetch: fetchImpl,
+    });
+
+    await client.checkouts.create(
+      { amount: 100 },
+      {
+        idempotencyKey: " order_1001 ",
+        requestId: " req_client ",
+      }
+    );
+
+    const headers = requests[0]?.init?.headers as Headers;
+    expect(headers.get("Authorization")).toBe("Bearer trq_test_secret");
+    expect(headers.get("Idempotency-Key")).toBe("order_1001");
+    expect(headers.get("Request-Id")).toBe("req_client");
+  });
+
+  it("rejects unsafe client configuration", () => {
+    expect(
+      () =>
+        new Troqpay({
+          apiKey: "trq_test_secret",
+          baseUrl: "http://api.example.test",
+        })
+    ).toThrow(TroqpayConfigurationError);
+
+    expect(
+      () =>
+        new Troqpay({
+          apiKey: "trq_test_secret",
+          timeoutMs: 0,
+        })
+    ).toThrow(TroqpayConfigurationError);
+  });
+
+  it("requires idempotency when creating withdrawals at runtime", async () => {
+    const client = new Troqpay({
+      apiKey: "trq_live_secret",
+      fetch: async () => createJsonResponse({}),
+    });
+
+    expect(() =>
+      (
+        client.withdrawals.create as unknown as (
+          params: unknown,
+          options?: unknown
+        ) => unknown
+      )({
+        rail: "BRL_PIX",
+        amount: "100.00",
+      })
+    ).toThrow(TroqpayConfigurationError);
   });
 });

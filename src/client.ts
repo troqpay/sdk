@@ -13,7 +13,7 @@ import type {
 
 const DEFAULT_BASE_URL = "https://api.troqpay.com";
 const DEFAULT_TIMEOUT_MS = 30_000;
-const CLIENT_HEADER = "troqpay-js/0.1.0";
+const CLIENT_HEADER = "troqpay-js/0.1.1";
 
 type ApiRequestOptions = RequestOptions & {
   method: "GET" | "POST";
@@ -22,7 +22,28 @@ type ApiRequestOptions = RequestOptions & {
 };
 
 function normalizeBaseUrl(baseUrl: string): string {
-  return baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl;
+  const trimmedBaseUrl = baseUrl.trim();
+  let url: URL;
+
+  try {
+    url = new URL(trimmedBaseUrl);
+  } catch {
+    throw new TroqpayConfigurationError("`baseUrl` must be a valid URL.");
+  }
+
+  const isLocalhost = ["localhost", "127.0.0.1", "::1"].includes(url.hostname);
+
+  if (url.protocol !== "https:" && !(url.protocol === "http:" && isLocalhost)) {
+    throw new TroqpayConfigurationError(
+      "`baseUrl` must use https unless it points to localhost."
+    );
+  }
+
+  url.hash = "";
+  url.search = "";
+  url.pathname = url.pathname.replace(/\/+$/, "");
+
+  return url.toString().replace(/\/$/, "");
 }
 
 function getFetch(fetchImpl?: FetchLike): FetchLike {
@@ -80,6 +101,18 @@ function createTimeoutSignal(
   };
 }
 
+function normalizeTimeoutMs(timeoutMs?: number): number {
+  if (timeoutMs === undefined) {
+    return DEFAULT_TIMEOUT_MS;
+  }
+
+  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+    throw new TroqpayConfigurationError("`timeoutMs` must be a positive number.");
+  }
+
+  return timeoutMs;
+}
+
 export class Troqpay {
   readonly checkouts: {
     create: (
@@ -110,13 +143,15 @@ export class Troqpay {
   private readonly fetchImpl: FetchLike;
 
   constructor(options: TroqpayClientOptions) {
-    if (!options.apiKey?.trim()) {
+    const apiKey = options.apiKey?.trim();
+
+    if (!apiKey) {
       throw new TroqpayConfigurationError("`apiKey` is required.");
     }
 
-    this.apiKey = options.apiKey;
+    this.apiKey = apiKey;
     this.baseUrl = normalizeBaseUrl(options.baseUrl ?? DEFAULT_BASE_URL);
-    this.timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+    this.timeoutMs = normalizeTimeoutMs(options.timeoutMs);
     this.fetchImpl = getFetch(options.fetch);
 
     this.checkouts = {
@@ -145,13 +180,20 @@ export class Troqpay {
     };
 
     this.withdrawals = {
-      create: (params, requestOptions) =>
-        this.request<Withdrawal>({
+      create: (params, requestOptions) => {
+        if (!requestOptions?.idempotencyKey?.trim()) {
+          throw new TroqpayConfigurationError(
+            "`idempotencyKey` is required when creating withdrawals."
+          );
+        }
+
+        return this.request<Withdrawal>({
           method: "POST",
           path: "/v1/withdrawals",
           body: params,
           ...requestOptions,
-        }),
+        });
+      },
       retrieve: (withdrawalId, requestOptions) =>
         this.request<Withdrawal>({
           method: "GET",
@@ -172,12 +214,16 @@ export class Troqpay {
       headers.set("Content-Type", "application/json");
     }
 
-    if (options.idempotencyKey) {
-      headers.set("Idempotency-Key", options.idempotencyKey);
+    const idempotencyKey = options.idempotencyKey?.trim();
+
+    if (idempotencyKey) {
+      headers.set("Idempotency-Key", idempotencyKey);
     }
 
-    if (options.requestId) {
-      headers.set("Request-Id", options.requestId);
+    const requestId = options.requestId?.trim();
+
+    if (requestId) {
+      headers.set("Request-Id", requestId);
     }
 
     const timeout = createTimeoutSignal(this.timeoutMs, options.signal);
