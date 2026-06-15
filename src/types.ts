@@ -15,6 +15,12 @@ export type RequestOptions = {
   signal?: AbortSignal;
 };
 
+export type Health = {
+  ok: boolean;
+  service: string;
+  requestId: string;
+};
+
 export type Currency = "BRL";
 
 export type CheckoutStatus = "PENDING" | "PAID" | "EXPIRED" | "CANCELLED";

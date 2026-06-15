@@ -9,6 +9,7 @@ export type {
   CreateCheckoutParams,
   CreateWithdrawalParams,
   Currency,
+  Health,
   RequestOptions,
   SettlementStatus,
   TroqpayClientOptions,

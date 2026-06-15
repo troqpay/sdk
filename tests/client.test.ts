@@ -132,6 +132,32 @@ describe("Troqpay", () => {
     });
   });
 
+  it("retrieves API health", async () => {
+    const fetchImpl: typeof fetch = async (input, init) => {
+      expect(input).toBe("https://api.troqpay.com/health");
+
+      const headers = init?.headers as Headers;
+      expect(headers.get("X-Troqpay-Client")).toBe("troqpay-js/0.1.2");
+
+      return createJsonResponse({
+        ok: true,
+        service: "troqpay-api",
+        requestId: "req_health",
+      });
+    };
+
+    const client = new Troqpay({
+      apiKey: "trq_test_secret",
+      fetch: fetchImpl,
+    });
+
+    await expect(client.health.retrieve()).resolves.toEqual({
+      ok: true,
+      service: "troqpay-api",
+      requestId: "req_health",
+    });
+  });
+
   it("normalizes secret and request headers", async () => {
     const requests: Array<{ input: RequestInfo | URL; init?: RequestInit }> = [];
     const fetchImpl: typeof fetch = async (input, init) => {

@@ -5,6 +5,7 @@ import type {
   CreateCheckoutParams,
   CreateWithdrawalParams,
   FetchLike,
+  Health,
   RequestOptions,
   TroqpayClientOptions,
   TroqpayErrorResponse,
@@ -13,7 +14,7 @@ import type {
 
 const DEFAULT_BASE_URL = "https://api.troqpay.com";
 const DEFAULT_TIMEOUT_MS = 30_000;
-const CLIENT_HEADER = "troqpay-js/0.1.1";
+const CLIENT_HEADER = "troqpay-js/0.1.2";
 
 type ApiRequestOptions = RequestOptions & {
   method: "GET" | "POST";
@@ -126,6 +127,10 @@ export class Troqpay {
     retrieve: (options?: RequestOptions) => Promise<Balance>;
   };
 
+  readonly health: {
+    retrieve: (options?: RequestOptions) => Promise<Health>;
+  };
+
   readonly withdrawals: {
     create: (
       params: CreateWithdrawalParams,
@@ -175,6 +180,15 @@ export class Troqpay {
         this.request<Balance>({
           method: "GET",
           path: "/v1/balance",
+          ...requestOptions,
+        }),
+    };
+
+    this.health = {
+      retrieve: (requestOptions) =>
+        this.request<Health>({
+          method: "GET",
+          path: "/health",
           ...requestOptions,
         }),
     };
