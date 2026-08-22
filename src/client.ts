@@ -12,9 +12,10 @@ import type {
   Withdrawal,
 } from "./types.js";
 
-const DEFAULT_BASE_URL = "https://api.troqpay.com";
+const TEST_BASE_URL = "https://api-test.troqpay.com";
+const LIVE_BASE_URL = "https://api.troqpay.com";
 const DEFAULT_TIMEOUT_MS = 30_000;
-const CLIENT_HEADER = "troqpay-js/0.1.2";
+const CLIENT_HEADER = "troqpay-js/0.1.3";
 
 type ApiRequestOptions = RequestOptions & {
   method: "GET" | "POST";
@@ -45,6 +46,20 @@ function normalizeBaseUrl(baseUrl: string): string {
   url.pathname = url.pathname.replace(/\/+$/, "");
 
   return url.toString().replace(/\/$/, "");
+}
+
+function inferBaseUrl(apiKey: string): string {
+  if (apiKey.startsWith("trq_test_")) {
+    return TEST_BASE_URL;
+  }
+
+  if (apiKey.startsWith("trq_live_")) {
+    return LIVE_BASE_URL;
+  }
+
+  throw new TroqpayConfigurationError(
+    "Cannot infer `baseUrl` from the API key prefix. Pass `baseUrl` explicitly."
+  );
 }
 
 function getFetch(fetchImpl?: FetchLike): FetchLike {
@@ -155,7 +170,7 @@ export class Troqpay {
     }
 
     this.apiKey = apiKey;
-    this.baseUrl = normalizeBaseUrl(options.baseUrl ?? DEFAULT_BASE_URL);
+    this.baseUrl = normalizeBaseUrl(options.baseUrl ?? inferBaseUrl(apiKey));
     this.timeoutMs = normalizeTimeoutMs(options.timeoutMs);
     this.fetchImpl = getFetch(options.fetch);
 

@@ -109,7 +109,7 @@ describe("Troqpay", () => {
 
   it("retrieves balance", async () => {
     const fetchImpl: typeof fetch = async (input) => {
-      expect(input).toBe("https://api.troqpay.com/v1/balance");
+      expect(input).toBe("https://api-test.troqpay.com/v1/balance");
       return createJsonResponse({
         livemode: false,
         currency: "BRL",
@@ -134,10 +134,10 @@ describe("Troqpay", () => {
 
   it("retrieves API health", async () => {
     const fetchImpl: typeof fetch = async (input, init) => {
-      expect(input).toBe("https://api.troqpay.com/health");
+      expect(input).toBe("https://api-test.troqpay.com/health");
 
       const headers = init?.headers as Headers;
-      expect(headers.get("X-Troqpay-Client")).toBe("troqpay-js/0.1.2");
+      expect(headers.get("X-Troqpay-Client")).toBe("troqpay-js/0.1.3");
 
       return createJsonResponse({
         ok: true,
@@ -183,6 +183,37 @@ describe("Troqpay", () => {
     expect(headers.get("Authorization")).toBe("Bearer trq_test_secret");
     expect(headers.get("Idempotency-Key")).toBe("order_1001");
     expect(headers.get("Request-Id")).toBe("req_client");
+  });
+
+  it("uses the live API for live keys", async () => {
+    const fetchImpl: typeof fetch = async (input) => {
+      expect(input).toBe("https://api.troqpay.com/health");
+      return createJsonResponse({ ok: true });
+    };
+
+    const client = new Troqpay({
+      apiKey: "trq_live_secret",
+      fetch: fetchImpl,
+    });
+
+    await client.health.retrieve();
+  });
+
+  it("requires an explicit base URL for unknown key prefixes", () => {
+    expect(
+      () =>
+        new Troqpay({
+          apiKey: "custom_secret",
+        })
+    ).toThrow(TroqpayConfigurationError);
+
+    expect(
+      () =>
+        new Troqpay({
+          apiKey: "custom_secret",
+          baseUrl: "http://localhost:3000",
+        })
+    ).not.toThrow();
   });
 
   it("rejects unsafe client configuration", () => {

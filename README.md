@@ -40,6 +40,14 @@ const checkout = await troqpay.checkouts.create(
 console.log(checkout.checkoutUrl);
 ```
 
+The SDK selects the API from the key prefix:
+
+- `trq_test_` uses `https://api-test.troqpay.com`.
+- `trq_live_` uses `https://api.troqpay.com`.
+
+An explicit `baseUrl` always takes precedence. Keys with another prefix require
+an explicit `baseUrl`.
+
 ## Staging or local API
 
 ```ts
