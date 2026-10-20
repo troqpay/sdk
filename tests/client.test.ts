@@ -252,4 +252,49 @@ describe("Troqpay", () => {
       })
     ).toThrow(TroqpayConfigurationError);
   });
+
+  it("throws TroqpayAPIError for error responses with an empty body", async () => {
+    const client = new Troqpay({
+      apiKey: "trq_test_secret",
+      fetch: async () =>
+        new Response(null, { status: 502, headers: { "X-Request-Id": "req_502" } }),
+    });
+
+    const error = await client.balance.retrieve().catch((err: unknown) => err);
+
+    expect(error).toBeInstanceOf(TroqpayAPIError);
+    expect(error).toMatchObject({
+      status: 502,
+      requestId: "req_502",
+      type: null,
+      code: null,
+      responseBody: null,
+      message: "troqpay API request failed with status 502",
+    });
+  });
+
+  it("throws TroqpayAPIError for non-JSON error bodies", async () => {
+    const client = new Troqpay({
+      apiKey: "trq_test_secret",
+      fetch: async () => new Response("<html>Bad Gateway</html>", { status: 503 }),
+    });
+
+    const error = await client.balance.retrieve().catch((err: unknown) => err);
+
+    expect(error).toBeInstanceOf(TroqpayAPIError);
+    expect(error).toMatchObject({
+      status: 503,
+      responseBody: "<html>Bad Gateway</html>",
+    });
+  });
+
+  it("accepts the IPv6 loopback address over http", () => {
+    expect(
+      () =>
+        new Troqpay({
+          apiKey: "custom_secret",
+          baseUrl: "http://[::1]:3000",
+        })
+    ).not.toThrow();
+  });
 });
