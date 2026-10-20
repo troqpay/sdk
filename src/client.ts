@@ -33,7 +33,8 @@ function normalizeBaseUrl(baseUrl: string): string {
     throw new TroqpayConfigurationError("`baseUrl` must be a valid URL.");
   }
 
-  const isLocalhost = ["localhost", "127.0.0.1", "::1"].includes(url.hostname);
+  // WHATWG URL keeps IPv6 hosts in brackets: new URL("http://[::1]").hostname === "[::1]".
+  const isLocalhost = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
 
   if (url.protocol !== "https:" && !(url.protocol === "http:" && isLocalhost)) {
     throw new TroqpayConfigurationError(
@@ -267,7 +268,12 @@ export class Troqpay {
       const responseBody = await parseResponseBody(response);
 
       if (!response.ok) {
-        const errorResponse = responseBody as TroqpayErrorResponse;
+        // Error responses are not always JSON objects: a gateway 502/503 or a
+        // 401 can arrive with an empty body (parsed as null) or plain text.
+        const errorResponse =
+          responseBody !== null && typeof responseBody === "object"
+            ? (responseBody as TroqpayErrorResponse)
+            : undefined;
         const requestId =
           response.headers.get("Request-Id") ??
           response.headers.get("X-Request-Id") ??
@@ -276,7 +282,7 @@ export class Troqpay {
         throw new TroqpayAPIError({
           status: response.status,
           requestId,
-          error: errorResponse.error,
+          error: errorResponse?.error,
           responseBody,
         });
       }
